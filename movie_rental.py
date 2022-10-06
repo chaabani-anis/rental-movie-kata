@@ -1,63 +1,48 @@
-from abc import ABCMeta, abstractmethod
-
-
-class Render(metaclass=ABCMeta):
-    @abstractmethod
-    def render_header(self, name):
-        pass
-
-    @abstractmethod
-    def render_footer(self, frequent_renter_points, total_amount):
-        pass
-
-    @abstractmethod
-    def render_movie(self, each, this_amount):
-        pass
-
-
-class RenderText(Render):
-    def render_header(self, name):
-        return "Rental Record for " + name + "\n"
-
-    def render_footer(self, frequent_renter_points, total_amount):
-        return "Amount owed is " + str(total_amount) + "\n" \
-               + "You earned " + str(frequent_renter_points) + " frequent renter points"
-
-    def render_movie(self, each, this_amount):
-        return "\t" + each.getMovie().getTitle() + "\t" + str(this_amount) + "\n"
-
 class Customer:
-
-
     def __init__(self, name):
         self._rentals = []
         self.name = name
 
     def getName(self):
         return self.name
+    def statement(self):
+        totalAmount = 0
+        frequentRenterPoints = 0
+        result = "Rental Record for " + self.getName() + "\n"
 
-    def statement(self, render: Render):
-        total_amount = 0
-        frequent_renter_points = 0
-        result = render.render_header(self.getName())
+        for each in self._rentals:
+            thisAmount = 0.0
 
-        for rental in self._rentals:
-            this_amount = 0.0
-            this_amount = rental.determine_amounts()
-            result += render.render_movie(rental, this_amount)
-            total_amount += this_amount
+            # determine amounts for each line
+            if each.getMovie().getPriceCode() == Movie.REGULAR:
+                thisAmount += 2
+                if each.getDaysRented() > 2:
+                    thisAmount += (each.getDaysRented() - 2) * 1.5
+            elif each.getMovie().getPriceCode() == Movie.NEW_RELEASE:
+                thisAmount += each.getDaysRented() * 3
+            elif each.getMovie().getPriceCode() == Movie.CHILDRENS:
+                thisAmount += 1.5
+                if each.getDaysRented() > 3:
+                    thisAmount += (each.getDaysRented() - 3) * 1.5
 
-        frequent_renter_points = self.compute_renter_points()
+            # add frequent renter points
+            frequentRenterPoints += 1
+            # add bonus for a two day new release rental
+            if (each.getMovie().getPriceCode() == Movie.NEW_RELEASE) and each.getDaysRented() > 1:
+                frequentRenterPoints += 1
 
-        result += render.render_footer(frequent_renter_points, total_amount)
+            # show figures for this rental
+            result += "\t" + each.getMovie().getTitle() + "\t" + str(thisAmount) + "\n"
+            totalAmount += thisAmount
+
+        # add footer lines
+        result += "Amount owed is " + str(totalAmount) + "\n"
+        result += "You earned " + str(frequentRenterPoints) + " frequent renter points"
 
         return result
 
     def addRental(self, param):
         self._rentals.append(param)
-
-    def compute_renter_points(self):
-        return sum(map(lambda rental: rental.add_frequent_renter_points(), self._rentals))
 
 
 class Movie:
@@ -89,24 +74,3 @@ class Rental:
 
     def getMovie(self):
         return self.movie
-
-    def add_frequent_renter_points(self):
-        frequentRenterPoints = 1
-        # add bonus for a two day new release rental
-        if (self.getMovie().getPriceCode() == Movie.NEW_RELEASE) and self.getDaysRented() > 1:
-            frequentRenterPoints += 1
-        return frequentRenterPoints
-
-    def determine_amounts(self):
-        thisAmount = 0.0
-        if self.getMovie().getPriceCode() == Movie.REGULAR:
-            thisAmount += 2
-            if self.getDaysRented() > 2:
-                thisAmount += (self.getDaysRented() - 2) * 1.5
-        elif self.getMovie().getPriceCode() == Movie.NEW_RELEASE:
-            thisAmount += self.getDaysRented() * 3
-        elif self.getMovie().getPriceCode() == Movie.CHILDRENS:
-            thisAmount += 1.5
-            if self.getDaysRented() > 3:
-                thisAmount += (self.getDaysRented() - 3) * 1.5
-        return thisAmount
